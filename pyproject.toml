@@ -10,7 +10,10 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
 authors = [
-    {name = "Aniruddh Goteti"},
+    {name = "Aniruddh Goteti", email = "aniruddh.goteti@orbion.life"},
+]
+maintainers = [
+    {name = "Aniruddh Goteti", email = "aniruddh.goteti@orbion.life"},
 ]
 keywords = ["quantum", "machine-learning", "pennylane", "benchmark", "qml"]
 classifiers = [
@@ -38,7 +41,11 @@ dev = ["pytest>=7.0", "pytest-cov"]
 all = ["pyscf>=2.4", "pytest>=7.0", "pytest-cov"]
 
 [project.urls]
-Repository = "https://github.com/aniruddhgoteti/quantum-ml-comparator"
+Homepage = "https://orbion.life"
+Repository = "https://github.com/orbion-life/quantum-ml-comparator"
+Issues = "https://github.com/orbion-life/quantum-ml-comparator/issues"
+Changelog = "https://github.com/orbion-life/quantum-ml-comparator/blob/main/CHANGELOG.md"
+Documentation = "https://orbion-life.github.io/quantum-ml-comparator/"
 
 [tool.setuptools.packages.find]
 include = ["qmc*"]

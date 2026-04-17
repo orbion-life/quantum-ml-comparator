@@ -1,0 +1,40 @@
+{
+  "title": "quantum-ml-comparator: quantum vs classical ML benchmarking with automatic algorithm recommendations",
+  "description": "A general-purpose Python framework for comparing quantum machine learning algorithms against classical ML baselines. Includes a QML algorithm recommender that suggests quantum counterparts for common classical algorithms (SVM, MLP, Random Forest, Logistic Regression, k-NN, XGBoost, Naive Bayes, PCA), a VQE runner for molecular benchmarks (H2, LiH, H2O), and head-to-head comparison tooling.",
+  "upload_type": "software",
+  "license": "MIT",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Goteti, Aniruddh",
+      "affiliation": "Orbion GmbH"
+    }
+  ],
+  "contributors": [
+    {
+      "type": "HostingInstitution",
+      "name": "Orbion GmbH"
+    }
+  ],
+  "keywords": [
+    "quantum machine learning",
+    "pennylane",
+    "variational quantum eigensolver",
+    "variational quantum classifier",
+    "quantum kernel",
+    "benchmark",
+    "QNP ansatz"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/orbion-life/quantum-ml-comparator",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "arXiv:2104.05695",
+      "relation": "references",
+      "scheme": "arxiv"
+    }
+  ]
+}
