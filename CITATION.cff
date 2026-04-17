@@ -18,7 +18,7 @@ contact:
 repository-code: "https://github.com/orbion-life/quantum-ml-comparator"
 url: "https://github.com/orbion-life/quantum-ml-comparator"
 license: MIT
-version: "0.1.0"
+version: "0.2.0"
 date-released: 2026-04-17
 keywords:
   - quantum machine learning
