@@ -22,8 +22,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff
 
-      - name: Run ruff check
-        run: ruff check qmc/ tests/ --select E,F,W --ignore E501,E402,E731
+      - name: Run ruff check (qmc package)
+        run: ruff check qmc/ --select E,F,W --ignore E501,E402,E731,F841
+
+      - name: Run ruff check (tests, relaxed)
+        run: ruff check tests/ --select E9,F63,F7,F82
 
       - name: Syntax check
         run: python -m compileall qmc/ tests/

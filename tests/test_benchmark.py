@@ -1,5 +1,4 @@
 """Tests for the Benchmark class (classical-only, no quantum imports needed)."""
-import pytest
 import numpy as np
 
 
@@ -71,7 +70,7 @@ class TestBenchmarkClassicalOnly:
 
 class TestDatasetLoading:
     def test_builtin_datasets(self):
-        from qmc.datasets.builtin import load_dataset, list_datasets
+        from qmc.datasets.builtin import list_datasets
         names = list_datasets()
         assert "iris" in names
         assert "breast_cancer" in names

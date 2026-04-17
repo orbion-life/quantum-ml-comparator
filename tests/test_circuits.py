@@ -1,5 +1,4 @@
 """Tests for quantum circuit modules."""
-import pytest
 import numpy as np
 
 
