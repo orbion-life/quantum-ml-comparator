@@ -9,6 +9,23 @@ starting from v0.1.0. Breaking changes to the public API exported from
 
 ## [Unreleased]
 
+### Added
+- `examples/reproduce_anselmetti_h2.py`: reproduces the H2 VQE benchmark
+  from Anselmetti et al. (2021), including a 23-point dissociation curve.
+  Enforces four scientific-sanity gates: equilibrium error < 1 mHa,
+  variational-principle compliance, minimum in [0.70, 0.78] Å, smooth
+  VQE-vs-FCI residual. Produces `examples/figures/h2_dissociation.{png,csv}`.
+- `tests/test_reproductions.py` integration test that executes the
+  H2 reproduction script in CI and fails if any gate regresses
+  (marked `@pytest.mark.slow`).
+
+### Fixed
+- `qmc.molecules.vqe.VQERunner` now imports from the correct path
+  `qmc.circuits.qnp` (was previously a broken import from a non-existent
+  `qmc.circuits.qnp_gates`). This made the entire VQE runner unusable
+  on fresh installs — now verified to reproduce FCI energies to <1e-8 Ha
+  on H2.
+
 ## [0.2.0] - 2026-04-17
 
 ### Added
