@@ -119,17 +119,15 @@ Before requesting review:
 1. Open a `release: prepare vX.Y.Z` PR that:
    - Moves `[Unreleased]` entries in `CHANGELOG.md` into a new
      `[X.Y.Z] - YYYY-MM-DD` section.
-   - Bumps `version` in both `pyproject.toml` and `CITATION.cff`.
+   - Bumps `version` in `pyproject.toml`, `qmc/__init__.py`, and
+     `CITATION.cff`.
 2. After merge, tag and push:
    ```bash
    git tag vX.Y.Z
    git push origin vX.Y.Z
    ```
 3. The tag push triggers `.github/workflows/release.yml`, which builds
-   the sdist / wheel and publishes to PyPI via trusted publishing.
-4. Zenodo auto-mints a new version DOI. Paste it into the DOI badge in
-   `README.md` and the `doi:` field in `CITATION.cff` in a follow-up
-   `chore: update DOI for vX.Y.Z` commit.
+   the sdist / wheel and publishes to PyPI via Trusted Publishing.
 
 ## Questions
 
