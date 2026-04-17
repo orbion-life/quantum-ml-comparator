@@ -301,15 +301,16 @@ class VQERunner:
 
         # Build cost function based on ansatz
         try:
-            from qmc.circuits.qnp_gates import (
-                create_qnp_vqe_circuit, initialize_qnp_params,
+            from qmc.circuits.qnp import (
+                create_qnp_vqe_circuit,
+                initialize_qnp_params,
                 create_hea_vqe_circuit,
             )
-        except ImportError:
+        except ImportError as exc:
             raise ImportError(
-                "qmc.circuits.qnp_gates is required for VQE. "
+                "qmc.circuits.qnp is required for VQE. "
                 "Ensure the circuits module is installed."
-            )
+            ) from exc
 
         if self.ansatz == 'QNP':
             cost_fn, n_params = create_qnp_vqe_circuit(
