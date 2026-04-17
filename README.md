@@ -11,20 +11,24 @@
 
 **Compare quantum machine learning algorithms against classical ML — with automatic QML recommendations.**
 
-A general-purpose, open-source framework to benchmark QML vs classical ML on your own datasets. Tell it what classical algorithm you're using, and it recommends which quantum algorithms to compare against, explains why, and runs the comparison for you.
+A general-purpose open-source framework to benchmark QML vs classical ML on your own datasets. Tell it what classical algorithm you're using and it recommends which quantum algorithms to compare against, explains why, and runs the comparison for you.
 
 ## Install
 
 ```bash
-pip install -e .
+pip install quantum-ml-comparator
 ```
 
-For molecular VQE support:
+Optional extras:
+
 ```bash
-pip install -e ".[molecules]"
+pip install "quantum-ml-comparator[molecules]"  # adds pyscf for VQE demos
+pip install "quantum-ml-comparator[dev]"        # pytest, ruff, mypy
 ```
 
-## Quickstart (3 lines)
+Python ≥ 3.9. Supported backends: PennyLane's `default.qubit` (CPU) out of the box; `lightning.qubit` if you install `pennylane-lightning`.
+
+## Quickstart
 
 ```python
 from qmc import Benchmark
@@ -34,9 +38,28 @@ bench.run()
 bench.report("results/")
 ```
 
-Quantum methods are **auto-recommended** based on your classical methods.
+Quantum methods are **auto-recommended** based on your classical methods — see the [mappings table](#mapping-reference) below.
 
-## The QML Recommender
+## scikit-learn compatible estimators
+
+`VQCClassifier` and `QuantumKernelClassifier` satisfy the `BaseEstimator` + `ClassifierMixin` contract, so they drop into any existing sklearn pipeline:
+
+```python
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import cross_val_score
+from qmc import VQCClassifier
+
+pipe = Pipeline([
+    ("scaler", StandardScaler()),
+    ("vqc", VQCClassifier(n_qubits=4, n_layers=2, epochs=20)),
+])
+scores = cross_val_score(pipe, X, y, cv=5)
+```
+
+Persistence: use `joblib` or `cloudpickle` (stdlib `pickle` doesn't handle PennyLane QNode closures).
+
+## QML algorithm recommender
 
 Don't know which quantum algorithm to try? Ask:
 
@@ -47,6 +70,7 @@ print_recommendations("RandomForest")
 ```
 
 Output:
+
 ```
 [PRIMARY] Quantum Kernel Ensemble  (difficulty: medium)
   Ensemble of quantum-kernel SVMs on bootstrap samples, mimicking Random Forest's bagging.
@@ -59,39 +83,38 @@ Output:
   Rationale: A sufficiently expressive VQC can match an ensemble of weak learners.
 ```
 
-Supported classical algorithms: **SVM, MLP, Random Forest, Logistic Regression, k-NN, XGBoost, Naive Bayes, PCA** (plus any algorithm falls back to general-purpose VQC/QuantumKernel).
+Supported classical algorithms: **SVM, MLP, Random Forest, Logistic Regression, k-NN, XGBoost, Naive Bayes, PCA**. Anything else falls back to the general-purpose VQC / Quantum Kernel recommendations.
 
-## What's Included
+## What's included
 
-### Classical models
+### Classical baselines
 MLP (PyTorch), SVM, Random Forest, Logistic Regression, k-NN, Gradient Boosting, Naive Bayes, Decision Tree.
 
 ### Quantum circuits
 - **VQC** — Variational Quantum Classifier (binary + multiclass)
-- **Quantum Kernel** — IQP-style feature map + precomputed SVM
-- **QNP ansatz** — Particle-number-preserving gates (Anselmetti et al.)
+- **Quantum kernel** — IQP-style feature map + precomputed SVM
+- **QNP ansatz** — particle-number-preserving gates (Anselmetti et al.)
 - **HEA ansatz** — StronglyEntanglingLayers (generic)
-- Plus circuit factory templates for custom designs
+- Plus factory helpers for custom circuits in `qmc.circuits.templates`
 
 ### Molecular VQE
-Run VQE on standard benchmark molecules (H2, HeH+, LiH, H2O) with QNP or HEA ansatze. Compare ansatz performance:
+Run VQE on standard benchmark molecules (H₂, HeH⁺, LiH, H₂O) with the QNP or HEA ansatz. The H₂ reproduction of Anselmetti et al. (2021) ships as an executable script:
 
-```python
-from qmc.molecules import VQERunner
-
-runner = VQERunner(molecule="H2", ansatz="QNP", n_layers=4)
-result = runner.run()
-print(f"Energy: {result.energy:.6f} Ha  Error: {result.error:.2e}")
+```bash
+python examples/reproduce_anselmetti_h2.py
+# VQE matches FCI to < 1 mHa across the full dissociation curve
 ```
+
+![H2 dissociation curve](examples/figures/h2_dissociation.png)
 
 ### Live dashboard
 ```python
 from qmc.dashboard import start_dashboard
 start_dashboard(port=8501)
-# Open http://localhost:8501 — live training curves during bench.run()
+# Open http://localhost:8501 for live training curves during bench.run()
 ```
 
-## Bring Your Own Data
+## Bring your own data
 
 ```python
 import numpy as np
@@ -105,13 +128,14 @@ bench.run()
 ```
 
 Or from a CSV:
+
 ```python
 bench = Benchmark(dataset="data.csv", target_column="label")
 ```
 
 Built-in datasets: `iris`, `breast_cancer`, `wine`, `digits`, `moons`, `circles`, `blobs`.
 
-## Example Output
+## Example output
 
 Running `examples/01_quickstart.py` on Iris:
 
@@ -125,19 +149,13 @@ Running `examples/01_quickstart.py` on Iris:
 
 ## Examples
 
-- `examples/01_quickstart.py` — Classical vs quantum on Iris
-- `examples/02_recommender.py` — Get QML recommendations
-- `examples/03_molecule_vqe.py` — VQE on H2 (requires PySCF)
-- `examples/04_custom_dataset.py` — Bring your own numpy data
+- [`examples/01_quickstart.py`](examples/01_quickstart.py) — classical vs quantum on Iris
+- [`examples/02_recommender.py`](examples/02_recommender.py) — get QML recommendations
+- [`examples/03_molecule_vqe.py`](examples/03_molecule_vqe.py) — VQE on H₂ (requires PySCF)
+- [`examples/04_custom_dataset.py`](examples/04_custom_dataset.py) — bring your own numpy data
+- [`examples/reproduce_anselmetti_h2.py`](examples/reproduce_anselmetti_h2.py) — full H₂ VQE reproduction with sanity-gate assertions
 
-## Run Tests
-
-```bash
-pip install -e ".[dev]"
-pytest tests/
-```
-
-## Mappings Reference
+## Mapping reference
 
 | Your classical algorithm | Recommended quantum counterpart |
 |--------------------------|--------------------------------|
@@ -151,9 +169,37 @@ pytest tests/
 | PCA | Quantum feature map, Quantum Autoencoder |
 | *anything else* | VQC, Quantum Kernel (general-purpose) |
 
+## Development
+
+```bash
+git clone https://github.com/orbion-life/quantum-ml-comparator.git
+cd quantum-ml-comparator
+pip install -e ".[dev]"
+pytest tests/
+```
+
+Contributions welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev workflow, code standards, and how to add a new QML algorithm or dataset. Bug reports and security issues: [`SECURITY.md`](SECURITY.md).
+
+## Citation
+
+If you use this package in your work, please cite it:
+
+```bibtex
+@software{quantum_ml_comparator,
+  author  = {Goteti, Aniruddh},
+  title   = {quantum-ml-comparator: quantum vs classical ML benchmarking with automatic algorithm recommendations},
+  year    = {2026},
+  url     = {https://github.com/orbion-life/quantum-ml-comparator},
+  version = {0.2.1},
+  organization = {Orbion GmbH}
+}
+```
+
+GitHub also exposes a "Cite this repository" button (powered by [`CITATION.cff`](CITATION.cff)).
+
 ## License
 
-MIT — use it anywhere.
+[MIT](LICENSE). Use it anywhere.
 
 ## Acknowledgments
 
