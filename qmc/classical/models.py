@@ -172,12 +172,14 @@ def get_logistic_regression(C=1.0, max_iter=1000, seed=42):
     sklearn.linear_model.LogisticRegression
         Unfitted Logistic Regression classifier.
     """
+    # Note: `multi_class` was removed in sklearn 1.7. The behavior previously
+    # selected by `multi_class="auto"` is now the default and only supported
+    # path, so we omit the argument.
     return LogisticRegression(
         C=C,
         max_iter=max_iter,
         random_state=seed,
         solver="lbfgs",
-        multi_class="auto",
     )
 
 
