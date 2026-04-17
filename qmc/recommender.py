@@ -8,7 +8,37 @@ from __future__ import annotations
 
 import math
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional, TypedDict
+
+
+Difficulty = Literal["easy", "medium", "hard"]
+
+
+class CircuitConfig(TypedDict, total=False):
+    """Auto-configured quantum circuit parameters."""
+
+    n_qubits: int
+    n_layers: int
+    n_features: int
+    n_classes: int
+
+
+class Recommendation(TypedDict):
+    """A single quantum ML recommendation returned by :func:`recommend`."""
+
+    name: str
+    description: str
+    rationale: str
+    difficulty: Difficulty
+    circuit_config: CircuitConfig
+    classical_analog: str
+
+
+class MappingsTable(TypedDict):
+    """Structure returned by :func:`get_all_mappings`."""
+
+    _general_purpose: list[dict[str, Any]]
+    _aliases: dict[str, str]
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -31,21 +61,24 @@ def _circuit_config(
     n_classes: int,
     *,
     n_layers: Optional[int] = None,
-    extra: Optional[dict] = None,
-) -> dict:
+    extra: Optional[dict[str, Any]] = None,
+) -> CircuitConfig:
     """Build a circuit_config dict sized to the problem."""
     n_qubits = max(2, n_features)
     if n_layers is None:
         # Heuristic: ceil(log2(n_features)) + 1, minimum 2
         n_layers = max(2, math.ceil(math.log2(max(n_features, 2))) + 1)
-    config = {
+    config: CircuitConfig = {
         "n_qubits": n_qubits,
         "n_layers": n_layers,
         "n_features": n_features,
         "n_classes": n_classes,
     }
     if extra:
-        config.update(extra)
+        # TypedDict doesn't support arbitrary key updates — cast via dict.update
+        # on the underlying mapping. mypy narrows via cast here.
+        for k, v in extra.items():
+            config[k] = v  # type: ignore[literal-required]
     return config
 
 
@@ -401,7 +434,7 @@ def recommend(
     classical_algorithm: str,
     n_features: int = 8,
     n_classes: int = 2,
-) -> list[dict]:
+) -> list[Recommendation]:
     """Return ranked quantum ML counterparts for *classical_algorithm*.
 
     Parameters
@@ -428,7 +461,7 @@ def recommend(
         # Fallback: general-purpose quantum methods
         templates = _GENERAL_PURPOSE
 
-    results: list[dict] = []
+    results: list[Recommendation] = []
     for tmpl in templates:
         cfg = _circuit_config(
             n_features,
@@ -476,7 +509,7 @@ def print_recommendations(
     print()
 
 
-def get_all_mappings() -> dict:
+def get_all_mappings() -> dict[str, Any]:
     """Return the full mapping table (canonical keys -> template lists).
 
     Also includes a ``"_general_purpose"`` key for the fallback list and

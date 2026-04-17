@@ -20,7 +20,7 @@ jobs:
       - name: Install tools
         run: |
           python -m pip install --upgrade pip
-          pip install ruff
+          pip install -e ".[dev]"
 
       - name: Run ruff check (qmc package)
         run: ruff check qmc/ --select E,F,W --ignore E501,E402,E731,F841
@@ -30,3 +30,9 @@ jobs:
 
       - name: Syntax check
         run: python -m compileall qmc/ tests/
+
+      - name: Static type check (mypy, advisory)
+        # Advisory during progressive type-hint adoption — does not block CI.
+        # Will be made blocking once every public-API module has hints.
+        continue-on-error: true
+        run: mypy qmc/
