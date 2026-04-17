@@ -9,6 +9,8 @@ starting from v0.1.0. Breaking changes to the public API exported from
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-17
+
 ### Added
 - `examples/reproduce_anselmetti_h2.py`: reproduces the H2 VQE benchmark
   from Anselmetti et al. (2021), including a 23-point dissociation curve.
@@ -85,6 +87,7 @@ starting from v0.1.0. Breaking changes to the public API exported from
 - Branch protection on `main` requiring PR + 1 approval + passing
   status checks.
 
-[Unreleased]: https://github.com/orbion-life/quantum-ml-comparator/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/orbion-life/quantum-ml-comparator/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/orbion-life/quantum-ml-comparator/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/orbion-life/quantum-ml-comparator/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/orbion-life/quantum-ml-comparator/releases/tag/v0.1.0
