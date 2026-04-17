@@ -14,7 +14,6 @@ import numpy as np
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
-import pennylane as qml
 from pennylane import numpy as pnp
 
 from qmc.circuits.templates import kernel_circuit as _build_kernel_circuit

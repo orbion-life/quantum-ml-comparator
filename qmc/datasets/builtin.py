@@ -5,8 +5,8 @@ Provides standard datasets from sklearn for quantum vs classical ML
 comparisons. No proprietary data -- all datasets are freely available.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
+from typing import List
 
 import numpy as np
 

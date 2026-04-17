@@ -14,7 +14,6 @@ Three-line API::
 
 from __future__ import annotations
 
-import math
 import os
 import time
 from pathlib import Path
@@ -225,7 +224,6 @@ def _train_quantum(
     Imports PennyLane lazily so the rest of the package stays light.
     """
     import pennylane as qml
-    from sklearn.metrics import accuracy_score, f1_score
 
     resolved = _resolve_quantum(name)
     n_features = X_train.shape[1]

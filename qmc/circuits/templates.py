@@ -8,8 +8,6 @@ Provides parameterized circuits for:
 """
 
 import pennylane as qml
-from pennylane import numpy as pnp
-import numpy as np
 
 
 # ------------------------------------------------------------------

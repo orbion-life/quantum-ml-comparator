@@ -7,7 +7,7 @@ Compare ansatz convergence to FCI ground state energy.
 
 import time
 from dataclasses import dataclass, field
-from typing import List, Optional, Callable
+from typing import List, Optional
 
 import numpy as np
 
@@ -110,7 +110,7 @@ def compare_ansatze(mol_name, n_layers_list=None, max_steps=150):
     -------
     dict with results per method per layer count.
     """
-    from qmc.molecules.library import build_hamiltonian, MOLECULES
+    from qmc.molecules.library import build_hamiltonian
 
     if n_layers_list is None:
         n_layers_list = [2, 4, 8, 12]
@@ -158,7 +158,7 @@ def compare_ansatze(mol_name, n_layers_list=None, max_steps=150):
         print(f"\n  --- {n_layers} layers ---")
 
         # 1. QNP Ansatz
-        print(f"  [QNP] ", end='', flush=True)
+        print("  [QNP] ", end='', flush=True)
         try:
             qnp_cost, qnp_n_params = create_qnp_vqe_circuit(
                 H, n_qubits, n_layers, hf_state
@@ -193,7 +193,7 @@ def compare_ansatze(mol_name, n_layers_list=None, max_steps=150):
             print(f"FAILED: {e}")
 
         # 2. Hardware-Efficient Ansatz
-        print(f"  [HEA] ", end='', flush=True)
+        print("  [HEA] ", end='', flush=True)
         try:
             hea_cost, hea_n_params = create_hea_vqe_circuit(
                 H, n_qubits, n_layers, hf_state

@@ -3,7 +3,6 @@ Comparison plots and tables for quantum vs classical ML experiments.
 Publication-quality figures with matplotlib and seaborn.
 """
 
-import json
 import os
 
 import matplotlib

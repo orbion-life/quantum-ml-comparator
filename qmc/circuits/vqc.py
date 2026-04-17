@@ -12,7 +12,6 @@ The QNode is wrapped with ``qml.qnn.TorchLayer`` so the whole model
 is a standard ``nn.Module`` trainable with PyTorch optimizers.
 """
 
-import math
 import time
 from copy import deepcopy
 
@@ -22,7 +21,6 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
 import pennylane as qml
-from pennylane import numpy as pnp
 
 from qmc.circuits.templates import (
     angle_encoding_circuit,
