@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "quantum-ml-comparator"
+abstract: >
+  A general-purpose framework for comparing quantum machine learning
+  algorithms against classical ML baselines, with automatic QML
+  algorithm recommendations based on the classical algorithm in use.
+type: software
+authors:
+  - family-names: Goteti
+    given-names: Aniruddh
+    email: aniruddh.goteti@orbion.life
+    affiliation: "Orbion GmbH"
+contact:
+  - name: "Orbion GmbH"
+    email: aniruddh.goteti@orbion.life
+    website: "https://orbion.life"
+repository-code: "https://github.com/orbion-life/quantum-ml-comparator"
+url: "https://github.com/orbion-life/quantum-ml-comparator"
+license: MIT
+version: "0.1.0"
+date-released: 2026-04-17
+keywords:
+  - quantum machine learning
+  - pennylane
+  - benchmark
+  - vqe
+  - vqc
+  - qml
+  - quantum kernel
+  - variational quantum algorithms

@@ -1,5 +1,15 @@
 # quantum-ml-comparator
 
+[![tests](https://github.com/orbion-life/quantum-ml-comparator/actions/workflows/test.yml/badge.svg)](https://github.com/orbion-life/quantum-ml-comparator/actions/workflows/test.yml)
+[![lint](https://github.com/orbion-life/quantum-ml-comparator/actions/workflows/lint.yml/badge.svg)](https://github.com/orbion-life/quantum-ml-comparator/actions/workflows/lint.yml)
+[![PyPI version](https://img.shields.io/pypi/v/quantum-ml-comparator.svg)](https://pypi.org/project/quantum-ml-comparator/)
+[![Python versions](https://img.shields.io/pypi/pyversions/quantum-ml-comparator.svg)](https://pypi.org/project/quantum-ml-comparator/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![codecov](https://codecov.io/gh/orbion-life/quantum-ml-comparator/branch/main/graph/badge.svg)](https://codecov.io/gh/orbion-life/quantum-ml-comparator)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
+
+> Developed at [Orbion GmbH](https://orbion.life).
+
 **Compare quantum machine learning algorithms against classical ML — with automatic QML recommendations.**
 
 A general-purpose, open-source framework to benchmark QML vs classical ML on your own datasets. Tell it what classical algorithm you're using, and it recommends which quantum algorithms to compare against, explains why, and runs the comparison for you.
