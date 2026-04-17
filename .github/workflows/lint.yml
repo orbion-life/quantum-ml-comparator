@@ -3,8 +3,24 @@ name: lint
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "examples/figures/**"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
+      - "LICENSE"
+      - ".gitignore"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "examples/figures/**"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
+      - "LICENSE"
+      - ".gitignore"
 
 jobs:
   lint:
