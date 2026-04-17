@@ -9,9 +9,38 @@ starting from v0.1.0. Breaking changes to the public API exported from
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-17
+
+### Added
+- `VQCClassifier` — sklearn-compatible wrapper around the VQC
+  (`BaseEstimator`, `ClassifierMixin`). Supports `fit`, `predict`,
+  `predict_proba`, `score`, `get_params`, `set_params`. Auto-selects
+  binary vs multiclass based on `y` at fit time.
+- `QuantumKernelClassifier` — sklearn-compatible wrapper around the
+  IQP-style quantum kernel + precomputed SVM. Same sklearn contract,
+  plus stratified subsampling to keep the O(n^2) kernel tractable.
+- Both estimators live in `qmc/circuits/sklearn_api.py` and are
+  re-exported from the top-level package (`from qmc import VQCClassifier`).
+- PEP 561 `py.typed` marker, `TypedDict` structures in `qmc.recommender`
+  (`CircuitConfig`, `Recommendation`).
+- `pytest --cov=qmc` in CI with Codecov upload (advisory).
+- Advisory `mypy qmc/` step in CI.
+
 ### Changed
 - Documentation: added `CITATION.cff`, `CHANGELOG.md`, `CONTRIBUTING.md`,
   `CODE_OF_CONDUCT.md`, `SECURITY.md`.
+
+### Fixed
+- `qmc.classical.models.get_logistic_regression` no longer passes
+  the removed `multi_class` kwarg (sklearn ≥1.7 compatibility).
+
+### Deprecated
+- None.
+
+### Removed
+- None (this release is additive — existing users of `VQC`,
+  `VQCMulticlass`, `train_vqc`, and the functional kernel API
+  continue to work).
 
 ## [0.1.0] - 2026-04-17
 
@@ -39,5 +68,6 @@ starting from v0.1.0. Breaking changes to the public API exported from
 - Branch protection on `main` requiring PR + 1 approval + passing
   status checks.
 
-[Unreleased]: https://github.com/orbion-life/quantum-ml-comparator/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/orbion-life/quantum-ml-comparator/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/orbion-life/quantum-ml-comparator/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/orbion-life/quantum-ml-comparator/releases/tag/v0.1.0
