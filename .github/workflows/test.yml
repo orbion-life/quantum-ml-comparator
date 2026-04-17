@@ -1,0 +1,43 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest tests/ -v
+
+      - name: Check for proprietary references
+        run: |
+          set +e
+          FOUND=$(grep -ri "biolip\|ligand.api\|ligand_api\|receptor_dir\|RECEPTOR_DIR\|LIGAND_DIR\|binding.site\|binding_site\|250k_biolip\|BIOLIP_TSV\|protein-ligand" --include="*.py" --include="*.md" --include="*.toml" . 2>/dev/null)
+          if [ -n "$FOUND" ]; then
+            echo "ERROR: Found proprietary references:"
+            echo "$FOUND"
+            exit 1
+          fi
+          echo "OK: No proprietary references found."

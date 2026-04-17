@@ -148,5 +148,7 @@ MIT — use it anywhere.
 
 ## Acknowledgments
 
+This repository was developed with AI coding assistance. The research direction, experimental design, verification, and technical decisions are original work; the code scaffolding was accelerated with Claude.
+
 QNP gate implementation based on [Anselmetti et al. (2021)](https://arxiv.org/abs/2104.05695).
 Built on [PennyLane](https://pennylane.ai/) and [scikit-learn](https://scikit-learn.org/).
