@@ -77,7 +77,7 @@ def _load_builtin(name: str) -> ArrayPair:
             f"Choose from: {sorted(_BUILTIN_DATASETS)}"
         )
 
-    return data.data, data.target  # type: ignore[union-attr]
+    return data.data, data.target
 
 
 def _load_csv(path: str, target_column: Optional[str] = None) -> ArrayPair:
@@ -307,7 +307,6 @@ def _train_vqc(
         x_pad[: len(x)] = x[:n_features]
         val = float(circuit(x_pad, weights))
         preds.append(0 if val >= 0 else 1)
-    preds = np.array(preds)
 
     y_test_bin = (y_test > 0).astype(int) if len(np.unique(y_test)) > 2 else y_test
 
