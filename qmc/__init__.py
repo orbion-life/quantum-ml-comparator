@@ -1,6 +1,6 @@
 """quantum-ml-comparator — compare quantum and classical ML side by side."""
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 from qmc.benchmark import Benchmark, FeatureChannelBenchmark
 from qmc.circuits.sklearn_api import QuantumKernelClassifier, VQCClassifier
