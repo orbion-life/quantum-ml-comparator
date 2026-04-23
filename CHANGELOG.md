@@ -9,6 +9,8 @@ starting from v0.1.0. Breaking changes to the public API exported from
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-23
+
 ### Added
 - **`FeatureChannelBenchmark`** (`qmc.FeatureChannelBenchmark`): compare one
   estimator across multiple feature channels on the same labels, with
@@ -25,6 +27,13 @@ starting from v0.1.0. Breaking changes to the public API exported from
   (~3 min on a laptop), driven by `FeatureChannelBenchmark`.
 - `benchmarks/README.md`: provenance, license, schema, citation for
   the new dataset.
+
+### Changed
+- `ci: check-for-proprietary-references` step narrowed to flag only
+  Orbion-internal identifiers (module names, env-var names, internal-only
+  dataset filenames). Generic scientific terms like "biolip",
+  "protein-ligand", and "binding site" are allowed because they appear in
+  legitimate citations and public docstrings.
 
 ## [0.2.1] - 2026-04-17
 
@@ -104,7 +113,8 @@ starting from v0.1.0. Breaking changes to the public API exported from
 - Branch protection on `main` requiring PR + 1 approval + passing
   status checks.
 
-[Unreleased]: https://github.com/orbion-life/quantum-ml-comparator/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/orbion-life/quantum-ml-comparator/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/orbion-life/quantum-ml-comparator/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/orbion-life/quantum-ml-comparator/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/orbion-life/quantum-ml-comparator/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/orbion-life/quantum-ml-comparator/releases/tag/v0.1.0
