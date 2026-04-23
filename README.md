@@ -107,6 +107,53 @@ python examples/reproduce_anselmetti_h2.py
 
 ![H2 dissociation curve](examples/figures/h2_dissociation.png)
 
+### Protein–ligand binding benchmark (BioLiP sample, 220k residues)
+A 3 MB feature parquet shipped under `benchmarks/` lets anyone reproduce the
+published *+55.6 % F1 lift at 5,000 training samples* measurement in about
+three minutes:
+
+```bash
+python examples/05_protein_ligand_binding.py
+# ...
+#    n_train   classical F1   classical + quantum      lift
+#      5,000         0.1053                0.1639    +55.6%
+```
+
+See [`benchmarks/README.md`](benchmarks/README.md) for provenance, license,
+and the full column schema.
+
+### FeatureChannelBenchmark — same method, different feature channels
+
+Use `FeatureChannelBenchmark` when the question is *"does adding this feature
+channel help the model?"* rather than *"which model wins on this dataset?"*.
+It reuses one estimator across several feature sets on the same labels, with
+an optional learning-curve sweep.
+
+```python
+from qmc import FeatureChannelBenchmark
+from qmc.classical.models import get_random_forest
+
+bench = FeatureChannelBenchmark(
+    channels={
+        "classical only":      (X_train_cls, X_test_cls),
+        "classical + quantum": (X_train_all, X_test_all),
+    },
+    y_train=y_train,
+    y_test=y_test,
+    estimator_factory=lambda: get_random_forest(n_estimators=100, seed=42),
+    training_sizes=[100, 500, 1_000, 5_000, 10_000, 50_000],
+    seed=42,
+)
+bench.run()
+print(bench.to_dataframe())   # long-form DataFrame with per-channel lifts
+print(bench.summary())
+```
+
+Pass any scalar-returning `scorer(y_true, y_pred)` to override the default
+(binary F1 on the positive class). See
+`examples/05_protein_ligand_binding.py` for a full worked example against
+the shipped BioLiP sample.
+
 ### Live dashboard
 ```python
 from qmc.dashboard import start_dashboard

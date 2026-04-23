@@ -9,6 +9,23 @@ starting from v0.1.0. Breaking changes to the public API exported from
 
 ## [Unreleased]
 
+### Added
+- **`FeatureChannelBenchmark`** (`qmc.FeatureChannelBenchmark`): compare one
+  estimator across multiple feature channels on the same labels, with
+  optional learning-curve sweep via stratified subsampling. Complements
+  `Benchmark` (which compares different methods on one dataset) when the
+  experimental question is "does this extra feature channel help?" rather
+  than "which model wins?". Ships with 8 unit tests.
+- **`benchmarks/protein_ligand_binding_220k.parquet`** (3.0 MB, snappy):
+  220,471-residue public-literature sample (BioLiP v2) with a stratified
+  70/15/15 train/val/test split, 34 classical features and 10 VQE-derived
+  descriptors per row. No Orbion-proprietary content — features only.
+- **`examples/05_protein_ligand_binding.py`**: one-command reproduction
+  of the published "+55.6 % F1 lift at 5,000 training samples" result
+  (~3 min on a laptop), driven by `FeatureChannelBenchmark`.
+- `benchmarks/README.md`: provenance, license, schema, citation for
+  the new dataset.
+
 ## [0.2.1] - 2026-04-17
 
 ### Added
