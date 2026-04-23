@@ -2,14 +2,15 @@
 Reproduce the +55.6% low-data F1 lift on a 220,471-residue sample of public
 protein-ligand-binding data (BioLiP v2).
 
-What this script reproduces (from the dashboard at quantum-binding-explorer):
+This example is driven by :class:`qmc.FeatureChannelBenchmark`, which is the
+idiomatic qmc API for "same estimator, different feature sets on the same
+labels" comparisons. Under the hood the benchmark does the stratified
+subsample, the repeated fit / predict / score loop, and the per-channel
+lift computation so the script stays short and readable.
+
+What it reproduces (from the dashboard at quantum-binding-explorer):
   - Learning-curve points at 100, 500, 1k, 5k, 10k, 50k training samples
   - The headline "+55.6% at 5,000 samples" result
-
-Same off-the-shelf Random Forest from qmc.classical.models, once with the 34
-classical features, once with those + 10 VQE-derived descriptors. Everything
-else (the stratified subsample, the RF hyperparameters, the F1 metric) is
-taken from the qmc library.
 
 Runtime: ~3 minutes on a 2021 MacBook Pro (M1).
 
@@ -19,16 +20,12 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from time import perf_counter
 
 import numpy as np
 import pandas as pd
 
-# Library under test — the qmc classical helpers + evaluator.
-# Importing from qmc demonstrates the same API a reader would use for any
-# custom dataset: wrap a classifier from qmc.classical.models, then score
-# with qmc.classical.models.evaluate_model.
-from qmc.classical.models import get_random_forest, evaluate_model
+from qmc import FeatureChannelBenchmark
+from qmc.classical.models import get_random_forest
 
 
 HERE = Path(__file__).resolve().parent
@@ -62,43 +59,12 @@ def load(path: Path) -> pd.DataFrame:
     return pd.read_parquet(path)
 
 
-def stratified_subsample(y: np.ndarray, n: int, seed: int = 42) -> np.ndarray:
-    """Match the stratified sampler used to generate the published benchmark:
-    preserve the ~5.98 % positive rate at every training-set size."""
-    np.random.seed(seed)
-    pos_idx = np.where(y == 1)[0]
-    neg_idx = np.where(y == 0)[0]
-    pos_ratio = len(pos_idx) / len(y)
-    n_pos = max(1, int(n * pos_ratio))
-    n_neg = n - n_pos
-    pos_sample = np.random.choice(pos_idx, min(n_pos, len(pos_idx)), replace=False)
-    neg_sample = np.random.choice(neg_idx, min(n_neg, len(neg_idx)), replace=False)
-    idx = np.concatenate([pos_sample, neg_sample])
-    np.random.shuffle(idx)
-    return idx
-
-
-def f1_on_binding_class(model, X_test: np.ndarray, y_test: np.ndarray) -> float:
-    """Score with qmc.classical.models.evaluate_model, then pull out F1 on
-    the positive (binding-site) class — class_1 in the returned dict."""
-    metrics = evaluate_model(model, X_test, y_test)
-    return float(metrics["f1_class_1"])
-
-
-def train_and_score(X_train: np.ndarray, y_train: np.ndarray,
-                    X_test: np.ndarray, y_test: np.ndarray,
-                    n_train: int | None, seed: int = 42) -> float:
-    if n_train is not None and n_train < len(X_train):
-        idx = stratified_subsample(y_train, n_train, seed=seed)
-        X_train = X_train[idx]
-        y_train = y_train[idx]
-    # get_random_forest returns an sklearn estimator; we tune it to the exact
-    # hyperparameters the published benchmark used (n_estimators=100,
-    # max_depth=12, class_weight="balanced") before fitting.
-    clf = get_random_forest(n_estimators=100, seed=seed)
+def rf_factory():
+    """Fresh RF per channel/size with the hyperparameters the published
+    benchmark used (n_estimators=100, max_depth=12, class_weight='balanced')."""
+    clf = get_random_forest(n_estimators=100, seed=42)
     clf.set_params(max_depth=12, class_weight="balanced")
-    clf.fit(X_train, y_train)
-    return f1_on_binding_class(clf, X_test, y_test)
+    return clf
 
 
 def main() -> int:
@@ -117,39 +83,54 @@ def main() -> int:
 
     X_tr_cls = tr[CLASSICAL_COLS].to_numpy(dtype=np.float32)
     X_tr_all = tr[CLASSICAL_COLS + QUANTUM_COLS].to_numpy(dtype=np.float32)
-    y_tr = tr["label"].to_numpy(dtype=np.int64)
     X_te_cls = te[CLASSICAL_COLS].to_numpy(dtype=np.float32)
     X_te_all = te[CLASSICAL_COLS + QUANTUM_COLS].to_numpy(dtype=np.float32)
+    y_tr = tr["label"].to_numpy(dtype=np.int64)
     y_te = te["label"].to_numpy(dtype=np.int64)
 
     sizes = LEARNING_CURVE_SIZES + ([len(X_tr_cls)] if args.full else [])
 
+    bench = FeatureChannelBenchmark(
+        channels={
+            "classical only":      (X_tr_cls, X_te_cls),
+            "classical + quantum": (X_tr_all, X_te_all),
+        },
+        y_train=y_tr,
+        y_test=y_te,
+        estimator_factory=rf_factory,
+        training_sizes=sizes,
+        seed=42,
+    )
+
     print("\nTraining and scoring (this takes ~3 min on M1 Pro)…\n")
+    bench.run(verbose=False)
+
+    df_out = bench.to_dataframe()
+    # Pivot for a clean side-by-side table
+    pivot = df_out.pivot(index="n_train", columns="channel", values="score")
+    pivot["lift_pct"] = (
+        (pivot["classical + quantum"] - pivot["classical only"])
+        / pivot["classical only"] * 100
+    )
+    pivot = pivot.reindex(sizes)
+
     header = (f"{'n_train':>10}  {'classical F1':>13}  "
               f"{'classical + quantum':>20}  {'lift':>8}")
     print(header)
     print("-" * len(header))
+    for n, row in pivot.iterrows():
+        print(f"{int(n):>10,}  {row['classical only']:>13.4f}  "
+              f"{row['classical + quantum']:>20.4f}  "
+              f"{row['lift_pct']:>+7.1f}%")
 
-    rows = []
-    for n in sizes:
-        t0 = perf_counter()
-        f1_cls = train_and_score(X_tr_cls, y_tr, X_te_cls, y_te, n_train=n)
-        f1_all = train_and_score(X_tr_all, y_tr, X_te_all, y_te, n_train=n)
-        dt = perf_counter() - t0
-        lift = (f1_all - f1_cls) / f1_cls * 100 if f1_cls > 0 else float("nan")
-        print(f"{n:>10,}  {f1_cls:>13.4f}  {f1_all:>20.4f}  "
-              f"{lift:>+7.1f}%    [{dt:.1f}s]")
-        rows.append({"n_train": n, "f1_classical": f1_cls,
-                     "f1_classical_plus_quantum": f1_all, "lift_pct": lift})
-
-    out = pd.DataFrame(rows)
     out_path = HERE / "05_protein_ligand_binding_results.csv"
-    out.to_csv(out_path, index=False)
+    df_out.to_csv(out_path, index=False)
     print(f"\nResults saved to {out_path}")
 
-    peak = out.loc[out["lift_pct"].idxmax()]
-    print(f"\nHeadline result: peak lift = {peak['lift_pct']:+.1f}% "
-          f"at n_train = {int(peak['n_train']):,}.")
+    idx_peak = pivot["lift_pct"].idxmax()
+    print(f"\nHeadline result: peak lift = {pivot.loc[idx_peak, 'lift_pct']:+.1f}% "
+          f"at n_train = {int(idx_peak):,}.")
+    print(bench.summary())
     return 0
 
 

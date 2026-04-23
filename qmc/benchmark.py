@@ -786,3 +786,212 @@ class Benchmark:
             f"{best['accuracy']:.4f} accuracy on {ds_name} "
             f"({n_classical} classical, {n_quantum} quantum methods compared)"
         )
+
+
+# ---------------------------------------------------------------------------
+# FeatureChannelBenchmark — compare the same estimator across different
+# feature sets on the same labels. Useful when the experimental question is
+# "does adding this feature channel improve the model?" rather than "which
+# model wins on this dataset?".
+# ---------------------------------------------------------------------------
+
+from typing import Callable, Mapping  # noqa: E402
+
+
+class FeatureChannelBenchmark:
+    """Compare one estimator against multiple feature channels on the same labels.
+
+    Where :class:`Benchmark` compares *different methods on one dataset*, this
+    class compares *one method on different feature sets*. The canonical use
+    case is adding a new feature channel (e.g. quantum-chemistry descriptors)
+    to an existing classical feature set and measuring the lift.
+
+    Parameters
+    ----------
+    channels:
+        Mapping from human-readable channel name (e.g. ``"classical only"``)
+        to a tuple ``(X_train, X_test)`` of feature arrays. All channels must
+        share the same labels and the same number of train / test rows.
+    y_train, y_test:
+        Labels, shared across channels.
+    estimator_factory:
+        Zero-argument callable returning an unfitted estimator (a fresh copy
+        per channel and per training size, so that subsequent .fit() calls
+        don't share state). Must satisfy the sklearn ``fit``/``predict``
+        contract; PyTorch models from :mod:`qmc.classical.models` also work.
+    training_sizes:
+        Optional list of training-set sizes to sweep. When ``None`` a single
+        run is performed at the full training-set size. Each size is drawn
+        from ``X_train`` by stratified subsampling (when ``stratified=True``)
+        or uniform random sampling.
+    stratified:
+        If ``True`` (default) subsampling preserves the label distribution.
+    seed:
+        Random seed for the subsampler (default 42).
+    scorer:
+        Optional callable ``(y_true, y_pred) -> float`` that returns a
+        single summary score per fit. Defaults to binary F1 on the
+        positive class (class 1), matching the published benchmark. Pass
+        any scalar-returning scorer to use a different target metric.
+
+    Examples
+    --------
+    >>> from qmc import FeatureChannelBenchmark
+    >>> from qmc.classical.models import get_random_forest
+    >>> bench = FeatureChannelBenchmark(
+    ...     channels={
+    ...         "classical only":      (X_tr_cls, X_te_cls),
+    ...         "classical + quantum": (X_tr_all, X_te_all),
+    ...     },
+    ...     y_train=y_tr, y_test=y_te,
+    ...     estimator_factory=lambda: get_random_forest(n_estimators=100, seed=42),
+    ...     training_sizes=[100, 500, 1000, 5000, 10000, 50000],
+    ... )
+    >>> results = bench.run()
+    >>> bench.summary()                   # one-line "best channel" string
+    >>> bench.to_dataframe()               # long-form DataFrame with lifts
+    """
+
+    def __init__(
+        self,
+        channels: Mapping[str, ArrayPair],
+        y_train: np.ndarray,
+        y_test: np.ndarray,
+        estimator_factory: Callable[[], Any],
+        training_sizes: Optional[Sequence[int]] = None,
+        stratified: bool = True,
+        seed: int = 42,
+        scorer: Optional[Callable[[np.ndarray, np.ndarray], float]] = None,
+    ) -> None:
+        if not channels:
+            raise ValueError("channels must contain at least one entry")
+        first_key = next(iter(channels))
+        X_tr_ref, X_te_ref = channels[first_key]
+        n_tr, n_te = len(X_tr_ref), len(X_te_ref)
+        for name, (X_tr, X_te) in channels.items():
+            if len(X_tr) != n_tr or len(X_te) != n_te:
+                raise ValueError(
+                    f"Channel '{name}' has {len(X_tr)}/{len(X_te)} train/test "
+                    f"rows, expected {n_tr}/{n_te} to match the other channels."
+                )
+        if len(y_train) != n_tr:
+            raise ValueError(f"y_train has {len(y_train)} rows, expected {n_tr}.")
+        if len(y_test) != n_te:
+            raise ValueError(f"y_test has {len(y_test)} rows, expected {n_te}.")
+
+        self.channels: Dict[str, ArrayPair] = dict(channels)
+        self.y_train = np.asarray(y_train)
+        self.y_test = np.asarray(y_test)
+        self.estimator_factory = estimator_factory
+        self.training_sizes: List[int] = (
+            list(training_sizes) if training_sizes is not None else [n_tr]
+        )
+        self.stratified = stratified
+        self.seed = seed
+
+        if scorer is None:
+            from sklearn.metrics import f1_score
+
+            def _binary_f1(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+                return float(f1_score(y_true, y_pred, pos_label=1, zero_division=0))
+
+            self.scorer: Callable[[np.ndarray, np.ndarray], float] = _binary_f1
+        else:
+            self.scorer = scorer
+
+        self._results: Optional[Dict[str, Dict[int, Dict[str, float]]]] = None
+
+    # ------------------------------------------------------------------
+    # Internals
+    # ------------------------------------------------------------------
+
+    def _subsample(self, y: np.ndarray, n: int) -> np.ndarray:
+        """Deterministic train-index sampler. Stratified when enabled, else uniform."""
+        rng_state = np.random.get_state()
+        try:
+            np.random.seed(self.seed)
+            if not self.stratified:
+                idx = np.random.choice(len(y), size=min(n, len(y)), replace=False)
+                return np.asarray(idx)
+            pos_idx = np.where(y == 1)[0]
+            neg_idx = np.where(y == 0)[0]
+            pos_ratio = len(pos_idx) / len(y) if len(y) > 0 else 0.0
+            n_pos = max(1, int(n * pos_ratio))
+            n_neg = n - n_pos
+            pos_sample = np.random.choice(
+                pos_idx, min(n_pos, len(pos_idx)), replace=False)
+            neg_sample = np.random.choice(
+                neg_idx, min(n_neg, len(neg_idx)), replace=False)
+            idx = np.concatenate([pos_sample, neg_sample])
+            np.random.shuffle(idx)
+            return idx
+        finally:
+            np.random.set_state(rng_state)
+
+    # ------------------------------------------------------------------
+    # Public
+    # ------------------------------------------------------------------
+
+    def run(self, verbose: bool = False) -> Dict[str, Dict[int, Dict[str, float]]]:
+        """Train and score the estimator on every (channel, size) combination."""
+        results: Dict[str, Dict[int, Dict[str, float]]] = {
+            name: {} for name in self.channels
+        }
+        for size in self.training_sizes:
+            idx = self._subsample(self.y_train, size)
+            y_tr_sub = self.y_train[idx]
+            for name, (X_tr, X_te) in self.channels.items():
+                X_tr_sub = X_tr[idx]
+                clf = self.estimator_factory()
+                t0 = time.perf_counter()
+                clf.fit(X_tr_sub, y_tr_sub)
+                y_pred = clf.predict(X_te)
+                dt = time.perf_counter() - t0
+                score = self.scorer(self.y_test, y_pred)
+                results[name][size] = {"score": score, "fit_seconds": dt,
+                                       "n_train": len(idx)}
+                if verbose:
+                    print(f"  {name:>22s} @ n={size:>7d}: "
+                          f"score={score:.4f}  [{dt:.1f}s]")
+        self._results = results
+        return results
+
+    def to_dataframe(self):  # type: ignore[no-untyped-def]
+        """Return a long-format DataFrame: channel, n_train, score, lift_vs_first."""
+        if self._results is None:
+            raise RuntimeError("Call .run() before .to_dataframe()")
+        import pandas as pd
+
+        first_channel = next(iter(self.channels))
+        rows: List[Dict[str, Any]] = []
+        for channel, by_size in self._results.items():
+            for size, record in by_size.items():
+                baseline = self._results[first_channel][size]["score"]
+                score = record["score"]
+                lift = (score - baseline) / baseline * 100 if baseline > 0 else float("nan")
+                rows.append({
+                    "channel": channel,
+                    "n_train": size,
+                    "score": score,
+                    f"lift_vs_{first_channel}_pct": lift,
+                    "fit_seconds": record["fit_seconds"],
+                })
+        return pd.DataFrame(rows)
+
+    def summary(self) -> str:
+        """One-line "best channel" summary using the largest training size."""
+        if self._results is None:
+            raise RuntimeError("Call .run() before .summary()")
+        last_size = max(self.training_sizes)
+        ranking = sorted(
+            self._results.items(),
+            key=lambda kv: kv[1][last_size]["score"],
+            reverse=True,
+        )
+        best_name, best_scores = ranking[0]
+        return (
+            f"Best channel at n_train={last_size:,}: "
+            f"{best_name} (score={best_scores[last_size]['score']:.4f}) "
+            f"across {len(self.channels)} feature channel(s) "
+            f"and {len(self.training_sizes)} training-size(s)."
+        )

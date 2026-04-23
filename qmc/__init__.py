@@ -2,7 +2,7 @@
 
 __version__ = "0.2.1"
 
-from qmc.benchmark import Benchmark
+from qmc.benchmark import Benchmark, FeatureChannelBenchmark
 from qmc.circuits.sklearn_api import QuantumKernelClassifier, VQCClassifier
 from qmc.recommender import (
     get_all_mappings,
@@ -12,6 +12,7 @@ from qmc.recommender import (
 
 __all__ = [
     "Benchmark",
+    "FeatureChannelBenchmark",
     "QuantumKernelClassifier",
     "VQCClassifier",
     "get_all_mappings",
