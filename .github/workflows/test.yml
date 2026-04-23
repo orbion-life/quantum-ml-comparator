@@ -70,7 +70,16 @@ jobs:
       - name: Check for proprietary references
         run: |
           set +e
-          FOUND=$(grep -ri "biolip\|ligand.api\|ligand_api\|receptor_dir\|RECEPTOR_DIR\|LIGAND_DIR\|binding.site\|binding_site\|250k_biolip\|BIOLIP_TSV\|protein-ligand" --include="*.py" --include="*.md" --include="*.toml" . 2>/dev/null)
+          # Flag Orbion-internal module names, env-var names, and internal-only
+          # dataset filenames. Generic scientific terms ("biolip",
+          # "protein-ligand", "binding site") are allowed — they appear in
+          # legitimate citations in benchmarks/README.md and in the public
+          # docstrings that describe the shipped BioLiP sample.
+          FOUND=$(grep -rE \
+            "ligand[._-]api|ligand_prediction_api|RECEPTOR_DIR|LIGAND_DIR|250k_biolip|BIOLIP_TSV|astra_internal|orbion_internal" \
+            --include="*.py" --include="*.toml" --include="*.yml" --include="*.yaml" \
+            --exclude-dir=.github \
+            . 2>/dev/null)
           if [ -n "$FOUND" ]; then
             echo "ERROR: Found proprietary references:"
             echo "$FOUND"
