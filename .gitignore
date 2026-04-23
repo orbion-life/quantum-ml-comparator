@@ -18,3 +18,4 @@ quickstart_results/
 custom_results/
 *.log
 checkpoints/
+examples/*_results.csv

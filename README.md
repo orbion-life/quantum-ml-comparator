@@ -107,6 +107,21 @@ python examples/reproduce_anselmetti_h2.py
 
 ![H2 dissociation curve](examples/figures/h2_dissociation.png)
 
+### Protein–ligand binding benchmark (BioLiP sample, 220k residues)
+A 3 MB feature parquet shipped under `benchmarks/` lets anyone reproduce the
+published *+55.6 % F1 lift at 5,000 training samples* measurement in about
+three minutes:
+
+```bash
+python examples/05_protein_ligand_binding.py
+# ...
+#    n_train   classical F1   classical + quantum      lift
+#      5,000         0.1053                0.1639    +55.6%
+```
+
+See [`benchmarks/README.md`](benchmarks/README.md) for provenance, license,
+and the full column schema.
+
 ### Live dashboard
 ```python
 from qmc.dashboard import start_dashboard
