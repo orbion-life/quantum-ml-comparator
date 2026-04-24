@@ -43,8 +43,47 @@ from sklearn.utils.validation import (
     check_X_y,
 )
 
+from qmc._validation import (
+    QuantumKernelHyperparameters,
+    VQCHyperparameters,
+)
+
 
 __all__ = ["VQCClassifier", "QuantumKernelClassifier"]
+
+
+def _validate_vqc_params(estimator: "VQCClassifier") -> VQCHyperparameters:
+    """Validate ``estimator``'s hyperparameters via pydantic.
+
+    Called at the top of :meth:`VQCClassifier.fit` because sklearn requires
+    that ``__init__`` only stores arguments verbatim — validation is
+    expected at fit time. Centralised here so the same check applies whether
+    the estimator was constructed normally or via ``set_params``.
+    """
+    return VQCHyperparameters(
+        n_qubits=estimator.n_qubits,
+        n_layers=estimator.n_layers,
+        epochs=estimator.epochs,
+        lr=estimator.lr,
+        batch_size=estimator.batch_size,
+        seed=estimator.seed,
+        device_name=estimator.device_name,
+        diff_method=estimator.diff_method,
+    )
+
+
+def _validate_kernel_params(estimator: "QuantumKernelClassifier") -> QuantumKernelHyperparameters:
+    """Validate ``estimator``'s hyperparameters via pydantic.
+
+    See :func:`_validate_vqc_params` for the rationale on why this lives
+    in ``fit`` rather than ``__init__``.
+    """
+    return QuantumKernelHyperparameters(
+        n_qubits=estimator.n_qubits,
+        n_layers=estimator.n_layers,
+        seed=estimator.seed,
+        device_name=estimator.device_name,
+    )
 
 
 # ------------------------------------------------------------------------
@@ -158,6 +197,9 @@ class VQCClassifier(BaseEstimator, ClassifierMixin):
             Fitted estimator.
         """
         from qmc.circuits.vqc import train_vqc
+
+        # Validate hyperparameters at fit time (sklearn convention).
+        _validate_vqc_params(self)
 
         X, y = check_X_y(X, y, ensure_2d=True, accept_sparse=False)
         self.classes_ = np.unique(y)
@@ -306,6 +348,9 @@ class QuantumKernelClassifier(BaseEstimator, ClassifierMixin):
             compute_quantum_kernel,
             _stratified_subsample,
         )
+
+        # Validate hyperparameters at fit time (sklearn convention).
+        _validate_kernel_params(self)
 
         X, y = check_X_y(X, y, ensure_2d=True, accept_sparse=False)
         self.classes_ = np.unique(y)

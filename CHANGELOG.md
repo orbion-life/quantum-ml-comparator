@@ -9,6 +9,19 @@ starting from v0.1.0. Breaking changes to the public API exported from
 
 ## [Unreleased]
 
+### Added
+- **Pydantic-backed input validation** for the public API
+  (`qmc.recommend`, `qmc.print_recommendations`, `qmc.Benchmark`,
+  `qmc.FeatureChannelBenchmark`, `qmc.VQCClassifier`,
+  `qmc.QuantumKernelClassifier`). Bad input (negative qubits, NaN
+  learning rate, malformed dataset spec, duplicate method names,
+  non-existent CSV path, ...) now raises a clear `pydantic.ValidationError`
+  at the trust boundary instead of silently propagating into the math
+  kernels. Sklearn `__init__` contract is preserved — validation runs in
+  `fit`, not in `__init__`. Internal module `qmc/_validation.py`; new
+  test module `tests/test_validation.py` (28 tests).
+  Addresses ISO 27001 *sanitized-inputs-code-scanning*.
+
 ## [0.3.0] - 2026-04-23
 
 ### Added

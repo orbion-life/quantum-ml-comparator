@@ -10,6 +10,8 @@ import math
 import re
 from typing import Any, Dict, List, Literal, Optional, TypedDict
 
+from qmc._validation import RecommendInput
+
 
 Difficulty = Literal["easy", "medium", "hard"]
 
@@ -451,7 +453,21 @@ def recommend(
     list[dict]
         Each dict contains: name, description, rationale, difficulty,
         circuit_config, classical_analog.
+
+    Raises
+    ------
+    pydantic.ValidationError
+        If any argument is missing, of the wrong type, or out of bounds.
     """
+    args = RecommendInput(
+        classical_algorithm=classical_algorithm,
+        n_features=n_features,
+        n_classes=n_classes,
+    )
+    classical_algorithm = args.classical_algorithm
+    n_features = args.n_features
+    n_classes = args.n_classes
+
     key = _normalize(classical_algorithm)
     canonical = _ALIASES.get(key)
 
@@ -487,7 +503,19 @@ def print_recommendations(
     n_features: int = 8,
     n_classes: int = 2,
 ) -> None:
-    """Pretty-print quantum ML recommendations to stdout."""
+    """Pretty-print quantum ML recommendations to stdout.
+
+    Inputs are validated by the same :class:`~qmc._validation.RecommendInput`
+    schema as :func:`recommend`.
+    """
+    args = RecommendInput(
+        classical_algorithm=classical_algorithm,
+        n_features=n_features,
+        n_classes=n_classes,
+    )
+    classical_algorithm = args.classical_algorithm
+    n_features = args.n_features
+    n_classes = args.n_classes
     recs = recommend(classical_algorithm, n_features, n_classes)
     header = (
         f"Quantum ML recommendations for '{classical_algorithm}' "

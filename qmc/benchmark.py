@@ -24,6 +24,13 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 
 from qmc.recommender import recommend
+from qmc._validation import (
+    BenchmarkConfig,
+    FeatureChannelConfig,
+    validate_dataset_spec,
+    validate_method_list,
+    validate_training_sizes,
+)
 
 # ---------------------------------------------------------------------------
 # Type aliases
@@ -460,22 +467,34 @@ class Benchmark:
         test_size: float = 0.3,
         random_state: int = 42,
     ) -> None:
-        self.dataset_spec = dataset
-        self.target_column = target_column
-        self.n_qubits = n_qubits
-        self.n_layers = n_layers
-        self.test_size = test_size
-        self.random_state = random_state
+        # --- Sanitize / validate inputs at the trust boundary ---
+        cfg = BenchmarkConfig(
+            target_column=target_column,
+            n_qubits=n_qubits,
+            n_layers=n_layers,
+            test_size=test_size,
+            random_state=random_state,
+        )
+        validated_dataset = validate_dataset_spec(dataset)
+        validated_classical = validate_method_list("classical_methods", classical_methods)
+        validated_quantum = validate_method_list("quantum_methods", quantum_methods)
+
+        self.dataset_spec = validated_dataset
+        self.target_column = cfg.target_column
+        self.n_qubits = cfg.n_qubits
+        self.n_layers = cfg.n_layers
+        self.test_size = cfg.test_size
+        self.random_state = cfg.random_state
 
         # Resolve method lists
         self.classical_methods: List[str] = (
-            list(classical_methods) if classical_methods is not None
+            validated_classical if validated_classical is not None
             else ["MLP", "SVM", "RF"]
         )
 
-        if quantum_methods is not None:
-            self.quantum_methods: List[str] = list(quantum_methods)
-        elif classical_methods is not None:
+        if validated_quantum is not None:
+            self.quantum_methods: List[str] = validated_quantum
+        elif validated_classical is not None:
             # Auto-recommend from classical methods
             self.quantum_methods = self._auto_recommend(self.classical_methods)
         else:
@@ -863,6 +882,12 @@ class FeatureChannelBenchmark:
         seed: int = 42,
         scorer: Optional[Callable[[np.ndarray, np.ndarray], float]] = None,
     ) -> None:
+        # --- Scalar config goes through pydantic ---
+        cfg = FeatureChannelConfig(stratified=stratified, seed=seed)
+
+        # --- Channel/array shape validation (same checks, kept here as
+        # they are about *cross-argument* dimensional consistency, which
+        # pydantic isn't the right tool for) ---
         if not channels:
             raise ValueError("channels must contain at least one entry")
         first_key = next(iter(channels))
@@ -879,15 +904,22 @@ class FeatureChannelBenchmark:
         if len(y_test) != n_te:
             raise ValueError(f"y_test has {len(y_test)} rows, expected {n_te}.")
 
+        # estimator_factory must be callable; sklearn duck-typed beyond that.
+        if not callable(estimator_factory):
+            raise TypeError(
+                f"estimator_factory must be callable, got {type(estimator_factory).__name__}"
+            )
+
         self.channels: Dict[str, ArrayPair] = dict(channels)
         self.y_train = np.asarray(y_train)
         self.y_test = np.asarray(y_test)
         self.estimator_factory = estimator_factory
+        validated_sizes = validate_training_sizes(training_sizes, n_tr)
         self.training_sizes: List[int] = (
-            list(training_sizes) if training_sizes is not None else [n_tr]
+            validated_sizes if validated_sizes is not None else [n_tr]
         )
-        self.stratified = stratified
-        self.seed = seed
+        self.stratified = cfg.stratified
+        self.seed = cfg.seed
 
         if scorer is None:
             from sklearn.metrics import f1_score
