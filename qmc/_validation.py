@@ -17,11 +17,10 @@ public ``qmc.*`` functions/classes, which call into here transparently.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 ArrayPair = Tuple[np.ndarray, np.ndarray]
 DatasetSpec = Union[str, ArrayPair]
@@ -100,9 +99,15 @@ class QuantumKernelHyperparameters(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     n_qubits: int = Field(ge=1, le=MAX_QUBITS)
-    n_layers: int = Field(ge=1, le=MAX_LAYERS)
+    C: float = Field(gt=0.0, le=1e6)
+    max_samples: int = Field(ge=1, le=10**7)
     seed: int = Field(ge=0)
     device_name: str = Field(min_length=1, max_length=MAX_NAME_LEN)
+
+    @field_validator("C")
+    @classmethod
+    def _C_finite(cls, v: float) -> float:
+        return _check_finite("C", v)
 
 
 # ---------------------------------------------------------------------------
@@ -136,16 +141,18 @@ def validate_method_list(name: str, methods: Optional[Sequence[Any]]) -> Optiona
     """Validate an optional list of method-name strings.
 
     Returns a fresh ``list[str]`` (so callers don't share state with the
-    user's input) or ``None`` if input was ``None``. Raises ``ValueError``
-    on duplicates, empty lists, non-string entries, or strings that don't
-    match the same length/character bounds we enforce on
+    user's input) or ``None`` if input was ``None``. An *empty* list is
+    accepted and preserved — callers (e.g. :class:`Benchmark`) treat
+    ``methods=[]`` as a sentinel meaning "skip this side entirely",
+    which is distinct from ``methods=None`` ("auto-recommend").
+
+    Raises ``ValueError`` on duplicates, non-string entries, or strings
+    that don't match the same length/character bounds we enforce on
     :attr:`RecommendInput.classical_algorithm`.
     """
     if methods is None:
         return None
     methods_list = list(methods)
-    if not methods_list:
-        raise ValueError(f"{name} must be a non-empty list, got []")
     cleaned: list[str] = []
     for i, m in enumerate(methods_list):
         if not isinstance(m, str):

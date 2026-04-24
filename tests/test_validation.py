@@ -122,9 +122,11 @@ class TestBenchmarkValidation:
         with pytest.raises(ValidationError):
             Benchmark(dataset="iris", random_state=-1)
 
-    def test_rejects_empty_classical_methods(self):
-        with pytest.raises(ValueError, match="non-empty"):
-            Benchmark(dataset="iris", classical_methods=[])
+    def test_empty_classical_methods_is_allowed(self):
+        # Empty list is the documented "skip this side" sentinel — distinct
+        # from None which means "auto-recommend / use default".
+        bench = Benchmark(dataset="iris", classical_methods=[], quantum_methods=["VQC"])
+        assert bench.classical_methods == []
 
     def test_rejects_duplicate_quantum_methods(self):
         with pytest.raises(ValueError, match="duplicate"):
@@ -236,6 +238,18 @@ class TestQuantumKernelClassifierValidation:
 
     def test_fit_rejects_negative_seed(self):
         clf = QuantumKernelClassifier(seed=-1)
+        X = np.zeros((4, 2)); y = np.array([0, 1, 0, 1])
+        with pytest.raises(ValidationError):
+            clf.fit(X, y)
+
+    def test_fit_rejects_zero_C(self):
+        clf = QuantumKernelClassifier(C=0.0)
+        X = np.zeros((4, 2)); y = np.array([0, 1, 0, 1])
+        with pytest.raises(ValidationError):
+            clf.fit(X, y)
+
+    def test_fit_rejects_zero_max_samples(self):
+        clf = QuantumKernelClassifier(max_samples=0)
         X = np.zeros((4, 2)); y = np.array([0, 1, 0, 1])
         with pytest.raises(ValidationError):
             clf.fit(X, y)

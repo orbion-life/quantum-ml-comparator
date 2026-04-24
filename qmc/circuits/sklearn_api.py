@@ -80,7 +80,8 @@ def _validate_kernel_params(estimator: "QuantumKernelClassifier") -> QuantumKern
     """
     return QuantumKernelHyperparameters(
         n_qubits=estimator.n_qubits,
-        n_layers=estimator.n_layers,
+        C=estimator.C,
+        max_samples=estimator.max_samples,
         seed=estimator.seed,
         device_name=estimator.device_name,
     )
