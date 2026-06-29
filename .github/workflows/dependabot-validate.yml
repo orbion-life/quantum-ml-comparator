@@ -1,0 +1,90 @@
+name: Dependabot Validate
+
+# Library / research variant (NO deploy). Unprivileged pull_request stage: runs
+# CI + dependency-review, then hands the Dependabot metadata (not an image) to
+# the privileged merge stage as an artifact. Job name = the required
+# `dependabot-ci-green` check; human PRs hit the skip step and pass it.
+# Per-repo: set the "Unit gate" step to the repo's real test command, or replace
+# it with `python -m compileall <pkg>` (or delete it) for repos with no suite.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: dependabot-validate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dependabot-ci-green:
+    name: dependabot-ci-green
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Skip non-Dependabot PRs
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
+        run: echo "Not a Dependabot PR; validation gate is not applicable."
+
+      - name: Checkout PR head
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Fetch Dependabot metadata
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        id: metadata
+        uses: dependabot/fetch-metadata@v3
+
+      # --- Unit gate (per-repo) ---
+      # quantum-ml-comparator ships a pytest suite under tests/.
+      - name: Set up Python
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Unit gate (pytest)
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+          pytest -q
+      # --- end Unit gate ---
+
+      - name: Dependency review
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: never
+
+      - name: Package metadata handoff
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
+          DEP_NAMES: ${{ steps.metadata.outputs.dependency-names }}
+        run: |
+          set -euo pipefail
+          mkdir -p handoff
+          jq -n --arg pr "$PR_NUMBER" --arg sha "$HEAD_SHA" \
+            --arg ut "$UPDATE_TYPE" --arg eco "$ECOSYSTEM" --arg names "$DEP_NAMES" \
+            '{pr_number:$pr, head_sha:$sha, update_type:$ut, ecosystem:$eco, dependency_names:$names}' \
+            > handoff/meta.json
+          cat handoff/meta.json
+
+      - name: Upload metadata for the privileged merge stage
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependabot-meta
+          path: handoff/
+          retention-days: 1

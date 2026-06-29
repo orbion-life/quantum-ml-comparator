@@ -5,8 +5,18 @@ updates:
     target-branch: "main"
     schedule:
       interval: "weekly"
+    groups:
+      pip-patch-minor:
+        update-types:
+          - "patch"
+          - "minor"
   - package-ecosystem: "github-actions"
     directory: "/"
     target-branch: "main"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions-patch-minor:
+        update-types:
+          - "patch"
+          - "minor"
