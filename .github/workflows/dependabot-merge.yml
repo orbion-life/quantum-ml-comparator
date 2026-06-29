@@ -1,0 +1,125 @@
+name: Dependabot Merge
+
+# Library / research variant (NO deploy). Privileged workflow_run stage: reads
+# the metadata artifact (never PR code), re-derives the PR number from GitHub,
+# risk-tiers, and merges. Same security patterns as the deployable pipeline minus
+# the 0% deploy. The only required status check on main for these repos is
+# `dependabot-ci-green`.
+
+on:
+  workflow_run:
+    workflows: ["Dependabot Validate"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: dependabot-merge-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'dependabot/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Download metadata from validate run
+        uses: actions/download-artifact@v4
+        with:
+          name: dependabot-meta
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: handoff
+
+      - name: Resolve PR (trusted) + interlock
+        id: meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WF_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          test -f handoff/meta.json
+          ART_SHA=$(jq -r '.head_sha' handoff/meta.json | tr -d '[:space:]')
+          if [ "$ART_SHA" != "$WF_HEAD_SHA" ]; then
+            echo "::error::artifact head_sha ($ART_SHA) != workflow_run head_sha ($WF_HEAD_SHA)"; exit 1
+          fi
+          PR_NUMBER=$(gh api "repos/${{ github.repository }}/commits/${WF_HEAD_SHA}/pulls" \
+            --jq '[.[] | select(.user.login=="dependabot[bot]" and .state=="open")][0].number // empty')
+          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::no unique open Dependabot PR resolves to ${WF_HEAD_SHA}"; exit 1
+          fi
+          echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Create alert-read / review app token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ORBION_OPS_APP_ID }}
+          private-key: ${{ secrets.ORBION_OPS_PRIVATE_KEY }}
+
+      - name: Decide risk tier
+        id: tier
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          UPDATE_TYPE=$(jq -r '.update_type' handoff/meta.json | tr -d '\n\r' | head -c 64)
+          ECOSYSTEM=$(jq -r '.ecosystem' handoff/meta.json | tr -d '\n\r' | head -c 32)
+          DEP_NAMES=$(jq -r '.dependency_names' handoff/meta.json | tr '\n\r' ',,' | head -c 512)
+          tier="auto"; reason="patch/minor or low-risk tooling bump"
+          if [ "$UPDATE_TYPE" = "version-update:semver-major" ] && { [ "$ECOSYSTEM" = "pip" ] || [ "$ECOSYSTEM" = "npm" ]; }; then
+            tier="manual"; reason="runtime-library semver-major"
+          fi
+          case ",$(echo "$DEP_NAMES" | tr -d ' ')," in
+            *",azure/login,"*|*"create-github-app-token"*|*"aws-actions/configure-aws-credentials"*)
+              tier="manual"; reason="secret-handling action bump" ;;
+          esac
+          names_json=$(jq -Rn --arg names "$DEP_NAMES" '$names | split(",") | map(gsub("^\\s+|\\s+$"; "") | ascii_downcase) | map(select(length > 0))')
+          if ! alerts=$(gh api --paginate "repos/${{ github.repository }}/dependabot/alerts?state=open&per_page=100" \
+                --jq ".[] | select(.security_advisory.severity == \"critical\" or .security_advisory.severity == \"high\") | select(.dependency.package.name as \$pkg | any($names_json[]; . == (\$pkg | ascii_downcase))) | .dependency.package.name"); then
+            tier="manual"; reason="dependabot alerts API error (fail-closed)"
+          else
+            matches=$(printf '%s' "$alerts" | sort -u | paste -sd "," -)
+            if [ -n "$matches" ]; then tier="manual"; reason="open Critical/High alert: ${matches}"; fi
+          fi
+          echo "tier=$tier" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          echo "Risk tier: $tier ($reason)"
+
+      - name: Ensure labels exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh label create dependabot-auto --repo "${{ github.repository }}" \
+            --color 0E8A16 --description "Dependabot low-risk auto-merge tier" --force
+          gh label create needs-manual-review --repo "${{ github.repository }}" \
+            --color B60205 --description "Dependabot update needs human review" --force
+
+      - name: Apply merge policy
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
+          TIER: ${{ steps.tier.outputs.tier }}
+          REASON: ${{ steps.tier.outputs.reason }}
+          AUTOMERGE: ${{ vars.DEPENDABOT_AUTOMERGE }}
+        run: |
+          set -euo pipefail
+          if [ "$TIER" = "manual" ]; then
+            gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --add-label needs-manual-review
+            gh pr comment "$PR_NUMBER" --repo "${{ github.repository }}" \
+              --body "Risk tier: **manual** (${REASON}). CI is green; ready for an informed human review."
+            gh pr merge "$PR_NUMBER" --repo "${{ github.repository }}" --auto --squash --delete-branch || true
+          else
+            gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --add-label dependabot-auto
+            if [ "$AUTOMERGE" = "true" ]; then
+              gh pr review "$PR_NUMBER" --repo "${{ github.repository }}" --approve \
+                --body "Automated policy approval (${REASON}): CI green. See DEPENDABOT-RULEBOOK.md."
+            fi
+            gh pr merge "$PR_NUMBER" --repo "${{ github.repository }}" --auto --squash --delete-branch || true
+          fi
