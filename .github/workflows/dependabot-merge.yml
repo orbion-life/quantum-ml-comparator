@@ -113,11 +113,13 @@ jobs:
           set -euo pipefail
           if [ "$TIER" = "manual" ]; then
             gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --add-label needs-manual-review
+            gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --remove-label dependabot-auto 2>/dev/null || true
             gh pr comment "$PR_NUMBER" --repo "${{ github.repository }}" \
               --body "Risk tier: **manual** (${REASON}). CI is green; ready for an informed human review."
             gh pr merge "$PR_NUMBER" --repo "${{ github.repository }}" --auto --squash --delete-branch || true
           else
             gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --add-label dependabot-auto
+            gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --remove-label needs-manual-review 2>/dev/null || true
             if [ "$AUTOMERGE" = "true" ]; then
               gh pr review "$PR_NUMBER" --repo "${{ github.repository }}" --approve \
                 --body "Automated policy approval (${REASON}): CI green. See DEPENDABOT-RULEBOOK.md."
