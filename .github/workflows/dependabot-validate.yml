@@ -45,7 +45,7 @@ jobs:
       # quantum-ml-comparator ships a pytest suite under tests/.
       - name: Set up Python
         if: github.event.pull_request.user.login == 'dependabot[bot]'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
