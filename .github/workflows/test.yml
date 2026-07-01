@@ -32,6 +32,9 @@ on:
       - "SECURITY.md"
       - ".gitignore"
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
